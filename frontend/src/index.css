@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* Design tokens */
+@theme {
+  --color-primary: #3B82F6;
+  --color-primary-dark: #2563EB;
+
+  --color-background-light: #F3F4F6;
+  --color-background-dark: #111827;
+
+  --color-surface-light: #FFFFFF;
+  --color-surface-dark: #1F2937;
+
+  --color-text-light: #1F2937;
+  --color-text-dark: #F9FAFB;
+
+  --color-secondary-text-light: #6B7280;
+  --color-secondary-text-dark: #9CA3AF;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}
