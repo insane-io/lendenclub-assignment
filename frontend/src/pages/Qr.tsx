@@ -7,7 +7,6 @@ const Qr: React.FC = () => {
   const { userDetails } = useOutletContext<LayoutContext>()
   const navigate = useNavigate()
 
-  // default to showing user's own QR on page load
   const [mode, setMode] = useState<'scan' | 'show'>('show')
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
@@ -16,60 +15,6 @@ const Qr: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null)
   const detectorRef = useRef<any>(null)
   const rafRef = useRef<number | null>(null)
-
-  // Start camera + barcode detection using the Browser BarcodeDetector API if available
-  const startCameraScan = async () => {
-    setScanError(null)
-    if (!('mediaDevices' in navigator)) {
-      setScanError('Camera not available in this browser')
-      return
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-
-      // Use BarcodeDetector if available (Chromium-based browsers)
-      if ((window as any).BarcodeDetector) {
-        try {
-          const BarcodeDetector = (window as any).BarcodeDetector
-          detectorRef.current = new BarcodeDetector({ formats: ['qr_code'] })
-        } catch (err) {
-          detectorRef.current = null
-        }
-      } else {
-        detectorRef.current = null
-      }
-
-  setScanning(true)
-      // Poll for detection
-      const poll = async () => {
-        try {
-          if (detectorRef.current && videoRef.current) {
-            const results = await detectorRef.current.detect(videoRef.current)
-            if (results && results.length > 0) {
-              const raw = results[0].rawValue
-              finishScan(raw)
-              return
-            }
-          }
-        } catch (err: any) {
-          // ignore detection errors
-          console.error('Detection error', err)
-        }
-        rafRef.current = requestAnimationFrame(poll)
-      }
-
-      rafRef.current = requestAnimationFrame(poll)
-    } catch (err: any) {
-      console.error('Camera start failed', err)
-      setScanError('Failed to start camera')
-    }
-  }
 
   const stopCamera = () => {
     if (rafRef.current) {
@@ -81,38 +26,93 @@ const Qr: React.FC = () => {
       streamRef.current = null
     }
     if (videoRef.current) {
-      try { videoRef.current.pause() } catch {};
+      videoRef.current.pause()
       videoRef.current.srcObject = null
     }
     setScanning(false)
   }
 
-  useEffect(() => {
-    return () => {
-      stopCamera()
-    }
-  }, [])
-
-  // Auto-start/stop camera when switching modes. When user clicks Scan, `mode` becomes 'scan'
-  useEffect(() => {
-    if (mode === 'scan') {
-      // start scanning automatically when entering scan mode
-      startCameraScan()
+  const startCameraScan = async () => {
+    setScanError(null)
+    
+    // 1. Check for BarcodeDetector Support (Chrome/Edge only)
+    if (!('BarcodeDetector' in window)) {
+      setScanError('Native scanning not supported on this browser. Use Chrome or Edge for the best experience.')
+      // Note: We continue so the camera at least opens, even if detection won't work natively
     } else {
-      // stop camera when leaving scan mode
-      stopCamera()
+      const BarcodeDetector = (window as any).BarcodeDetector
+      detectorRef.current = new BarcodeDetector({ formats: ['qr_code'] })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode])
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 640 },
+          height: { ideal: 640 }
+        } 
+      })
+      
+      streamRef.current = stream
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        
+        // 2. ONLY start detection once the video is actually playing
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().then(() => {
+            setScanning(true)
+            startDetectionLoop()
+          }).catch(err => {
+            console.error("Playback failed", err)
+            setScanError("Click 'Retry' to start camera.")
+          })
+        }
+      }
+    } catch (err: any) {
+      console.error('Camera start failed', err)
+      setScanError('Camera access denied or unavailable.')
+    }
+  }
+
+  const startDetectionLoop = () => {
+    const poll = async () => {
+      if (!detectorRef.current || !videoRef.current || videoRef.current.readyState < 2) {
+        rafRef.current = requestAnimationFrame(poll)
+        return
+      }
+
+      try {
+        const results = await detectorRef.current.detect(videoRef.current)
+        if (results && results.length > 0) {
+          const raw = results[0].rawValue
+          finishScan(raw)
+          return // Exit loop on success
+        }
+      } catch (err) {
+        console.error('Detection error', err)
+      }
+      
+      rafRef.current = requestAnimationFrame(poll)
+    }
+    rafRef.current = requestAnimationFrame(poll)
+  }
 
   const finishScan = (raw: string) => {
     stopCamera()
-    // raw is expected to contain the user's email (or a URL containing it). Try to extract email.
     const emailMatch = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
     const email = emailMatch ? emailMatch[0] : raw
-    // navigate to home and pass recipient as URL param
     navigate(`/?recipient=${encodeURIComponent(email)}`)
   }
+
+  useEffect(() => {
+    if (mode === 'scan') {
+      startCameraScan()
+    } else {
+      stopCamera()
+    }
+    return () => stopCamera()
+  }, [mode])
 
   const myEmail = userDetails?.email || localStorage.getItem('user_email') || ''
 
@@ -124,70 +124,88 @@ const Qr: React.FC = () => {
         <div className="flex gap-3 mb-6">
           <button
             onClick={() => setMode('show')}
-            className={`py-2 px-4 rounded ${mode === 'show' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
+            className={`py-2 px-4 rounded transition-colors ${mode === 'show' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
           >
             Show my QR
           </button>
           <button
             onClick={() => setMode('scan')}
-            className={`py-2 px-4 rounded ${mode === 'scan' ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
+            className={`py-2 px-4 rounded transition-colors ${mode === 'scan' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
           >
             Scan someone's QR
           </button>
         </div>
 
         {mode === 'show' && (
-          <div className="bg-white p-6 rounded shadow text-center">
-            <p className="mb-3 text-sm text-gray-600">Share this QR code to receive payments.</p>
+          <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
+            <p className="mb-6 text-sm text-gray-500">Share this QR code to receive payments.</p>
             {myEmail ? (
-              <div className="inline-block bg-white p-4 rounded">
+              <div className="inline-block p-4 border-2 border-gray-50 rounded-2xl bg-white">
                 <img
                   alt="my-qr"
                   src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(myEmail)}&size=240x240`}
-                  width={240}
-                  height={240}
+                  className="mx-auto"
                 />
-                <div className="mt-3 text-sm text-gray-700">{myEmail}</div>
+                <div className="mt-4 font-medium text-gray-800">{myEmail}</div>
               </div>
             ) : (
-              <div className="text-sm text-gray-500">No email available to generate QR.</div>
+              <div className="py-10 text-gray-400">No account email found.</div>
             )}
           </div>
         )}
 
         {mode === 'scan' && (
-          <div className="bg-white p-6 rounded shadow">
-            <p className="mb-3 text-sm text-gray-600 text-center">Point your camera at a QR code or paste the code below.</p>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <p className="mb-4 text-sm text-center text-gray-600">Align the QR code within the frame to scan.</p>
 
-            {/* Camera preview - square mode */}
-            <div className="mb-4 flex justify-center">
-              {scanning ? (
-                <div className="relative">
-                  <video
-                    ref={videoRef}
-                    playsInline
-                    muted
-                    className="bg-black rounded"
-                    style={{ width: 320, height: 320, objectFit: 'cover' }}
-                  />
-                  <button onClick={() => setMode('show')} className="absolute top-2 right-2 bg-white rounded px-3 py-1">Close</button>
+            <div className="relative flex justify-center items-center overflow-hidden rounded-lg bg-black aspect-square max-w-[400px] mx-auto">
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                autoPlay
+                className="w-full h-full object-cover"
+              />
+              
+              {/* Overlay for Scanning Effect */}
+              {scanning && (
+                <div className="absolute inset-0 border-2 border-blue-500 opacity-30 animate-pulse pointer-events-none">
+                   <div className="absolute top-1/2 left-0 w-full h-[2px] bg-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan"></div>
                 </div>
-              ) : (
-                <div className="p-6 border rounded text-center">
-                  <div className="mb-3 text-sm text-gray-500">Initializing camera — please allow camera access.</div>
-                  <div className="flex justify-center">
-                    <button onClick={startCameraScan} className="py-2 px-4 bg-blue-600 text-white rounded">Retry camera</button>
-                  </div>
-                </div>
+              )}
+
+              {!scanning && !scanError && (
+                <div className="absolute text-white text-sm animate-pulse">Initializing camera...</div>
               )}
             </div>
 
-            {scanError && <div className="text-sm text-red-600">{scanError}</div>}
-
-            {/* <div className="text-xs text-gray-500 mt-4 text-center">If your browser doesn't support direct camera QR decoding, use the paste input above.</div> */}
+            {scanError && (
+              <div className="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg text-center">
+                {scanError}
+                <button onClick={startCameraScan} className="block w-full mt-2 font-bold underline">Try Again</button>
+              </div>
+            )}
+            
+            <button 
+              onClick={() => setMode('show')}
+              className="mt-6 w-full py-3 text-gray-500 text-sm font-medium border rounded-lg"
+            >
+              Cancel
+            </button>
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes scan {
+          0% { top: 10%; }
+          100% { top: 90%; }
+        }
+        .animate-scan {
+          position: absolute;
+          animation: scan 2s linear infinite;
+        }
+      `}</style>
     </div>
   )
 }
