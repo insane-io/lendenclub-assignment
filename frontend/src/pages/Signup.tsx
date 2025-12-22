@@ -186,7 +186,7 @@ const Signup: React.FC = () => {
               />
             </div>
           </div>
-            <div className="relative flex items-center">
+            {/* <div className="relative flex items-center">
               <span className="material-icons absolute left-4 text-blue-400 text-xl">lock</span>
               <input
                 className="w-full py-3 pl-12 pr-12 rounded-xl border-blue-100 bg-blue-50/50 text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none text-base"
@@ -199,7 +199,7 @@ const Signup: React.FC = () => {
               <button className="absolute right-4 text-blue-400 hover:text-blue-600 transition" type="button">
                 <span className="material-icons text-xl">visibility</span>
               </button>
-            </div>
+            </div> */}
           </div>
 
           {/* Terms & Conditions */}
