@@ -120,7 +120,6 @@ const Dashboard = () => {
     const params = new URLSearchParams(location.search)
     if (params.get('openPay')) setShowPayForm(true)
     return () => window.removeEventListener('resize', setMobileNow)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   
@@ -189,8 +188,6 @@ const Dashboard = () => {
       setSearchQuery('');
       setNote('');
       setPendingTransfer(null);
-      // After successful payment, on mobile go back to compact balance view
-      if (isMobile) setShowPayForm(false)
     } catch (err: any) {
       console.error('Transfer error', err);
       const msg = err?.response?.data?.detail || err?.message || 'Transfer failed';
@@ -202,7 +199,7 @@ const Dashboard = () => {
   return (
     <>
       {/* When showPayForm is active, show total balance directly */}
-      {showPayForm && (
+      {isMobile && (
         <div className="md:hidden w-full p-6">
           <div className="max-w-3xl mx-auto">
             <div className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
