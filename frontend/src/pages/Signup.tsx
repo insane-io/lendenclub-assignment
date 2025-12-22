@@ -142,9 +142,6 @@ const Signup: React.FC = () => {
 
           {/* Confirm Password Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 ml-1" htmlFor="confirm-password">
-              Confirm Password
-            </label>
 
           {/* PIN Input */}
           <div>
