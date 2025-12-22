@@ -1,19 +1,30 @@
 import React, { useEffect, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import axiosInstance from '../api/axiosInstance'
 import Sidebar from '../components/Sidebar'
 import BottomNav from '../components/BottomNav'
 
 const MobileTopBar: React.FC<{ balance?: any }> = ({ balance }) => {
+
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    localStorage.clear()
+    navigate('/login')
+  }
+
   return (
     <div className="md:hidden w-full bg-white p-3 border-b border-gray-100 flex items-center justify-between">
       <div className="flex items-center space-x-3 text-primary">
         <span className="material-icons text-2xl">account_balance_wallet</span>
         <h1 className="text-lg font-semibold text-gray-800">FinApp</h1>
       </div>
-      <div className="text-right">
+      <div className="text-right flex items-center gap-6">
+        <div className='flex flex-col'>
         <div className="text-xs text-gray-500">Balance</div>
         <div className="text-lg font-bold">₹ {balance ?? '0.00'}</div>
+        </div>
+        <span onClick={handleLogout} className="material-icons text-red-600">logout</span>
       </div>
     </div>
   )
