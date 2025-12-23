@@ -4,6 +4,7 @@ import axiosInstance from '../api/axiosInstance';
 import transfer from "../api/transfer";
 import Main from "../components/Main"
 import PinModal from '../components/PinModal'
+import { toast } from 'react-toastify'
 
 const Dashboard = () => {
   const [amount, setAmount] = useState<string>('');
@@ -176,6 +177,9 @@ const Dashboard = () => {
     if (!pendingTransfer) return;
     setTransferError(null);
     setShowPinModal(false);
+    // capture current pending transfer and recipient name so we can show toast after clearing state
+    const currentPending = pendingTransfer;
+    const recipientDisplayName = selectedUser?.name ?? currentPending.receiverEmail;
     try {
       setTransferLoading(true);
       const res = await transfer(pendingTransfer.receiverEmail, pendingTransfer.amount, pin, pendingTransfer.note);
@@ -188,10 +192,15 @@ const Dashboard = () => {
       setSearchQuery('');
       setNote('');
       setPendingTransfer(null);
+      // show success toast using captured name
+      toast.success(`₹ ${currentPending.amount} sent to ${recipientDisplayName}`);
     } catch (err: any) {
       console.error('Transfer error', err);
       const msg = err?.response?.data?.detail || err?.message || 'Transfer failed';
-      setTransferError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      const errMsg = typeof msg === 'string' ? msg : JSON.stringify(msg);
+      setTransferError(errMsg);
+      // show error toast
+      toast.error(errMsg);
     } finally {
       setTransferLoading(false);
     }

@@ -81,9 +81,19 @@ const History: React.FC = () => {
           <ul className="space-y-4">
             {txs.map((t) => (
               <li key={t.id} className="flex items-center space-x-4">
-                <div className="w-12 ">
-                  <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${t.type === 'credited' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    <span className="text-lg font-semibold">{t.type === 'credited' ? '+' : '-'}</span>
+                <div className="w-12">
+                  {/* Use DiceBear to render an avatar seeded by the other party's name
+                      - credited: show sender's avatar
+                      - debited: show receiver's avatar
+                      Provide a subtle ring color based on transaction type. */}
+                  <div className={`h-12 w-12 rounded-lg overflow-hidden ${t.type === 'credited' ? 'ring-1 ring-green-100' : 'ring-1 ring-red-100'}`}>
+                    <img
+                      src={`https://api.dicebear.com/6.x/initials/svg?seed=${encodeURIComponent(
+                        t.type === 'credited' ? t.sender_name : t.receiver_name
+                      )}`}
+                      alt={t.type === 'credited' ? t.sender_name : t.receiver_name}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                 </div>
 

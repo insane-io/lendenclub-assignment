@@ -17,6 +17,7 @@ const PinModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, loading, error 
   const handleConfirm = () => {
     if (!/^\d{4,6}$/.test(pin)) return
     onConfirm(pin)
+    setPin("")
   }
 
   return (
