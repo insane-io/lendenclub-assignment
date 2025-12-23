@@ -6,6 +6,8 @@ import Signup from './pages/Signup'
 import MainLayout from './layouts/MainLayout'
 import Qr from './pages/Qr'
 import History from './pages/History'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 function App() {
   const isAuthenticated = () => !!localStorage.getItem('access_token')
@@ -31,6 +33,8 @@ function App() {
         <Route path="/signup" element={<RedirectIfAuth><Signup /></RedirectIfAuth>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      {/* Global toast container (single instance) */}
+      <ToastContainer position="top-right" autoClose={4000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
     </BrowserRouter>
   )
 }

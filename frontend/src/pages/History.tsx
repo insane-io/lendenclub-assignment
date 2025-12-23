@@ -41,7 +41,22 @@ const History: React.FC = () => {
     }
 
     fetchTx()
-    return () => { mounted = false }
+
+    // listen for SSE-triggered transaction refreshes
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail
+        if (!mounted) return
+        const data: Tx[] = Array.isArray(detail) ? detail : []
+        data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        setTxs(data)
+      } catch (err) {
+        console.warn('transactions:updated handler error', err)
+      }
+    }
+    window.addEventListener('transactions:updated', handler as EventListener)
+
+    return () => { mounted = false; window.removeEventListener('transactions:updated', handler as EventListener) }
   }, [])
 
   const totalSent = txs.filter(t => t.type === 'debited').reduce((s, t) => s + t.amount, 0)

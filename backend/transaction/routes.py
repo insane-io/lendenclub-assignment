@@ -10,6 +10,8 @@ try:
     from .models import AuditLog
     from ..user.models import User
     from ..user.auth import verify_password
+    # sse manager
+    from ..sse.sse_manager import sse_manager
 except Exception:
     from database import get_db
     from user.routes import _get_current_user_from_token
@@ -18,6 +20,7 @@ except Exception:
     from transaction.models import AuditLog
     from user.models import User
     from user.auth import verify_password
+    from sse.sse_manager import sse_manager
 
 
 router = APIRouter()
@@ -44,13 +47,23 @@ def transfer(payload: TransferRequest, current_user=Depends(_get_current_user_fr
         # unexpected — include message to aid debugging (remove in production)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Transfer failed: {exc}")
 
-    return {
+    result = {
         "sender_id": sender.id,
         "receiver_id": receiver.id,
         "amount": float(audit.amount),
         "sender_balance": float(sender.balance),
         "receiver_balance": float(receiver.balance),
     }
+
+    # publish SSE events to receiver and sender (non-blocking, thread-safe)
+    try:
+        sse_manager.publish(receiver.id, {"event": "transfer", **result})
+        sse_manager.publish(sender.id, {"event": "transfer", **result})
+    except Exception:
+        # don't break the API if SSE publish fails
+        pass
+
+    return result
 
 
 @router.get("/transactions")

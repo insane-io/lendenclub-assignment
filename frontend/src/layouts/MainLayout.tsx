@@ -3,6 +3,8 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import axiosInstance from '../api/axiosInstance'
 import Sidebar from '../components/Sidebar'
 import BottomNav from '../components/BottomNav'
+import useSSE from '../sse/useSSE'
+import { toast } from 'react-toastify'
 
 const MobileTopBar: React.FC<{ balance?: any }> = ({ balance }) => {
 
@@ -48,6 +50,24 @@ const MainLayout: React.FC = () => {
     return () => { mounted = false }
   }, [])
 
+  // Start SSE and handle incoming transfer events
+  useSSE((data: any) => {
+    if (!data || data.event !== 'transfer') return
+    const meId = userDetails?.id
+    if (!meId) {
+      // if user not loaded yet, we can optionally refetch on first event
+      return
+    }
+    if (data.receiver_id === meId) {
+      setUserDetails((prev: any) => ({ ...(prev || {}), balance: data.receiver_balance }))
+      toast.success(`Received ₹ ${data.amount}`)
+    } else if (data.sender_id === meId) {
+      // update local balance for sender, but avoid showing a duplicate toast
+      setUserDetails((prev: any) => ({ ...(prev || {}), balance: data.sender_balance }))
+      // UI that initiated the transfer already shows a success toast, so skip another one here
+    }
+  })
+
   return (
     <div className="w-full min-h-screen bg-surface-light rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row h-auto border border-gray-100">
       <Sidebar userDetails={userDetails} />
@@ -60,6 +80,7 @@ const MainLayout: React.FC = () => {
 
       {/* Mobile bottom navigation */}
       <BottomNav />
+      {/* ToastContainer is provided at application root in src/main.tsx */}
     </div>
   )
 }
