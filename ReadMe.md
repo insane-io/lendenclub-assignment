@@ -1,5 +1,9 @@
 # FinApp — Simple Payment Demo (FastAPI + React)
 
+Live demo: https://lendenclub-assignment.vercel.app/
+
+[![Watch the demo](https://img.youtube.com/vi/W7EKj-8fweM/0.jpg)](https://youtu.be/W7EKj-8fweM)
+
 Project: a small payments demo that supports user signup/login, peer transfers, transaction history, QR-based payments, immutable audit logs, and realtime notifications via Server-Sent Events (SSE).
 
 ## Stack
